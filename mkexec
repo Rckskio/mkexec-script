@@ -1,0 +1,154 @@
+#!/bin/bash
+
+# Author: Luiz Henrique Goncalves
+# Nick Name: Rck
+# Date: Dec 11 2020
+# License: MIT
+
+# Changes will only be made on user environment
+# Simple script to move a bash script or executable to /home/user/.local/bin
+# and apply permission to execute
+
+# E.g: create script.bash
+# will rename the file to script
+# will make the file executable
+# will place the file on destination that are on path /home/user/.local/bin
+
+#Them you can call your script/executable by just typing the name
+
+# if /home/user/.local/bin do not exists, prompt if accept to create or not.
+
+# In case user needs it in another directory other than /home/user/.local/bin
+# edit the $DEFAULT_PATH to be the directory needed
+
+# Its possible to use this file to place itself in the DEFAULT_PATH
+# just run on terminal, $bash mkexec mkexec within the same directory
+
+
+# Default location to move
+# DEFAULT_PATH = "$HOME/.local/bin"
+
+####### Functions
+function copyFile { # Install the file and man page
+	C_PATH="$HOME/.local/bin"
+	chmod +x $0 # Apply permission to execute
+	cp $0 $C_PATH # Copy the file to the directory specified in C_PATH
+	sudo cp man/mkexec.8 /usr/share/man/man8/mkexec.8
+	sudo gzip /usr/share/man/man8/mkexec.8
+	[ $verbose = true ] && echo Moved to $C_PATH
+	[ $verbose = true ] && echo Done.
+	exit 0
+}
+
+function removeFile { # Remove the file and man page
+	C_PATH="$HOME/.local/bin"
+	rm $C_PATH/mkexec
+	sudo rm /usr/share/man/man8/mkexec.8.gz
+	[ $verbose = true ] && echo Deleted from $C_PATH
+	[ $verbose = true ] && echo Done.
+	exit 0
+}
+
+function promptCreate { # If the default directory not found, prompt the user if wish to create
+	echo "Path $DEFAULT_PATH not found."
+	code=0
+	echo "Do you wish to create? Y/n:" && read ANSWER
+	while [ $code -eq 0 ]; do
+		# If the answer is Yes, create the directory for the user
+		if [[ $ANSWER == [yY] ]] || [[ $ANSWER == [yY][eE][sS] ]]; then
+			mkdir $DEFAULT_PATH
+			[ $verbose = true ] && echo Path $DEFAULT_PATH created
+			let code=code+1
+		# Case the answer is No exit the program
+		elif [[ $ANSWER == [nN] ]] || [[ $ANSWER == [nN][oO] ]]; then
+			echo Exiting
+			[ $verbose = true ] && echo You can edit in this file the DEFAULT_PATH
+			[ $verbose = true ] && echo In case you wish to move to a different location.
+			exit 0
+		# Case not a valid answer ask again
+		else
+			echo "Path $DEFAULT_PATH not found."
+			echo "Do you wish to create? Y/n:" && read ANSWER
+		fi
+	done
+}
+
+
+
+# Assert flags
+verbose='false'
+pflag=
+hflag=
+iflag=
+uflag=
+new_path=
+
+while getopts hip:uv name
+do
+	case $name in
+	h)	hflag=1;;
+	i)	iflag=1
+		copyFile $0;;
+	p)	pflag=1
+		new_path="$OPTARG";;
+	u)	uflag=1
+		removeFile;;
+	v) 	verbose='true';;
+	?) 	echo "usage: mkexec [-p path/to/placefile] file"
+		 exit 2;;
+	esac
+done
+# echo last argument "${BASH_ARGV[0]}"
+shift $(($OPTIND - 1))
+FILE="$*"
+
+
+if [ ! -z "$hflag" ]; then
+	man mkexec
+	exit 0
+fi
+
+if [ ! -d $new_path ]; then
+	echo $new_path is not a valid path
+	exit 2
+fi
+
+# Exit if no script or executable provided
+if [ -z "$FILE" ]; then
+	echo usage: mkexec file
+	echo "see man mkexec for reference or type mkexec -h"
+	exit 2
+fi
+
+if [ ! -z $new_path ]; then
+	# New location to move
+	DEFAULT_PATH="$new_path"
+else
+	# Default location to move
+	DEFAULT_PATH="$HOME/.local/bin"
+fi
+
+[ $verbose = true ] && echo "Checking if path $DEFAULT_PATH exists"
+if [ -d $DEFAULT_PATH ]; then # Check if the directory already exists
+	[ $verbose = true ] && echo Pass
+else
+	promptCreate
+fi
+# Check if a file with the name provided exists
+if [ -f $FILE ]; then
+	NAME="${FILE%.*}" # remove .extension from name
+	if [ $FILE == $NAME ]; then
+		[ $verbose = true ] && echo Skipping change name
+	else
+		mv $FILE $NAME
+		[ $verbose = true ] && echo Changed name to $NAME
+	fi
+	chmod +x $NAME # Apply permission to execute
+	cp $NAME $DEFAULT_PATH # Copy the file to the directory specified for DEFAULT_PATH
+	[ $verbose = true ] && echo Moved to $DEFAULT_PATH
+	[ $verbose = true ] && echo Done.
+	exit 0
+else
+	echo File $FILE not found
+	exit 1
+fi
