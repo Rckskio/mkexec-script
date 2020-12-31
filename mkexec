@@ -9,42 +9,45 @@
 # Simple script to move a bash script or executable to /home/user/.local/bin
 # and apply permission to execute
 
-# E.g: create script.bash
-# will rename the file to script
+# E.g: mkexec myscript.bash
+# will rename the file to myscript
 # will make the file executable
-# will place the file on destination that are on path /home/user/.local/bin
+# will place the file on destination that are usually on 
+# user path /home/user/.local/bin
 
-#Them you can call your script/executable by just typing the name
+# Them you can call your script/executable by just typing the name
 
 # if /home/user/.local/bin do not exists, prompt if accept to create or not.
 
 # In case user needs it in another directory other than /home/user/.local/bin
-# edit the $DEFAULT_PATH to be the directory needed
+# edit the $DEFAULT_PATH to the directory needed
 
 # Its possible to use this file to place itself in the DEFAULT_PATH
-# just run on terminal, $bash mkexec mkexec within the same directory
-
+# just run on terminal, $ bash mkexec -i within the same directory extracted
 
 # Default location to move
 # DEFAULT_PATH = "$HOME/.local/bin"
 
+DEFAULT_PATH=$HOME/.local/bin
+
 ####### Functions
-function copyFile { # Install the file and man page
-	C_PATH="$HOME/.local/bin"
+function install_process { # Install the file and man page
+	[ $verbose = true ] && echo Making file executable
 	chmod +x $0 # Apply permission to execute
-	cp $0 $C_PATH # Copy the file to the directory specified in C_PATH
+	[ $verbose = true ] && echo Placing mkexec into $DEFAULT_PATH
+	cp $0 $DEFAULT_PATH # Copy the file to the directory specified in DEFAULT_PATH
+	[ $verbose = true ] && echo "Placing man page into /usr/share/man/man8/mkexec.8"
 	sudo cp man/mkexec.8 /usr/share/man/man8/mkexec.8
 	sudo gzip /usr/share/man/man8/mkexec.8
-	[ $verbose = true ] && echo Moved to $C_PATH
 	[ $verbose = true ] && echo Done.
 	exit 0
 }
 
-function removeFile { # Remove the file and man page
-	C_PATH="$HOME/.local/bin"
-	rm $C_PATH/mkexec
+function remove_file { # Remove the file and man page
+	[ $verbose = true ] && echo Removing mkexec from $DEFAULT_PATH
+	rm $DEFAULT_PATH/mkexec
+	[ $verbose = true ] && echo "Removing man page from /usr/share/man/man8"
 	sudo rm /usr/share/man/man8/mkexec.8.gz
-	[ $verbose = true ] && echo Deleted from $C_PATH
 	[ $verbose = true ] && echo Done.
 	exit 0
 }
@@ -88,11 +91,11 @@ do
 	case $name in
 	h)	hflag=1;;
 	i)	iflag=1
-		copyFile $0;;
+		install_process $0;;
 	p)	pflag=1
 		new_path="$OPTARG";;
 	u)	uflag=1
-		removeFile;;
+		remove_file;;
 	v) 	verbose='true';;
 	?) 	echo "usage: mkexec [-p path/to/placefile] file"
 		 exit 2;;
@@ -122,10 +125,7 @@ fi
 
 if [ ! -z $new_path ]; then
 	# New location to move
-	DEFAULT_PATH="$new_path"
-else
-	# Default location to move
-	DEFAULT_PATH="$HOME/.local/bin"
+	DEFAULT_PATH=$new_path
 fi
 
 [ $verbose = true ] && echo "Checking if path $DEFAULT_PATH exists"
